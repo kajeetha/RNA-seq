@@ -1,0 +1,105 @@
+Reading in the ENSG_ID2Name.txt text file (ENSEMBL gene IDs) and corresponding gene symbols. 
+```{r}
+gene_symbol_mapping <-  read.table("ENSG_ID2Name.txt", header=FALSE, stringsAsFactors = FALSE, row.names = 1)
+```
+
+```{r}
+raw_count_data <- read.table("final_read_counts.tsv", header =TRUE, stringsAsFactors = TRUE, row.names=1)
+```
+
+
+Removed last 5 rows of data and stored in new data matrix (minus the last 5 rows) in new variable called raw_count_data2. 
+```{r}
+raw_count_data2 <- head(raw_count_data, -5)
+
+```
+
+
+Required at least 25% of samples to have count > 25 
+
+```{r}
+quant <- apply(raw_count_data2,1,quantile,0.75)
+keep <- which((quant >= 25) == 1)
+filtered_raw_count_data <- raw_count_data2[keep,]
+```
+
+load edgeR
+```{r}
+library(edgeR)
+```
+
+class labels for Dex treated vs untreated.  
+```{r}
+class <- factor( c( rep("Dex",3), rep("untreated",3) ))
+```
+
+Getting the gene names from gene_symbol_mapping for the genes in the filtered_raw_count_data variable
+```{r}
+genes <- rownames(filtered_raw_count_data)
+gene_names <- gene_symbol_mapping[genes,1]
+```
+
+
+Made a DGEList object 
+
+```{r}
+tutorial_dgelist <- DGEList(counts = filtered_raw_count_data, genes = gene_names, group = class)
+```
+
+
+Performed EdgeR Normalization on the list using the calcNormFactors() function
+```{r}
+tutorial_dgelist <- calcNormFactors(tutorial_dgelist)
+```
+
+
+Exploring data: usinb the *plotMDS* function to look at the distances between samples. 
+
+```{r}
+plotMDS(tutorial_dgelist)
+```
+
+ 
+Dispersion estimate for DEG analysis
+```{r}
+tutorial_dgelist <- estimateCommonDisp(tutorial_dgelist, verbose=TRUE) 
+tutorial_dgelist <- estimateTagwiseDisp(tutorial_dgelist)  
+```
+
+
+Performed *exact test* ondata to look for differentially expressed genes using the exactTest() function and stored in a new variable called tutorial_et.
+```{r}
+tutorial_et <- exactTest(tutorial_dgelist, pair= c("Dex", "untreated"))
+```
+
+Printed top differentially expressed genes from the exact test using the topTags() function
+```{r}
+topTags(tutorial_et)
+```
+
+
+Corrected for multiple hypothesis testing using the decideTests() function
+ 
+```{r}
+tutorial_de <- decideTests(tutorial_et, method = "seperate", adjust.method = "fdr", p.value < 0.05)
+summary(tutorial_de)
+```
+
+
+Output differentially expressed genes in a Matrix of significantly DE genes:
+```{r}
+tutorial_de_gene_matrix = cbind(
+ genes,gene_names,
+ sprintf('%0.3f',log10(tutorial_et$table$PValue)),
+ sprintf('%0.3f',abs(tutorial_et$table$logFC))
+)[as.logical(tutorial_de),] 
+colnames(tutorial_de_gene_matrix) = c("Gene", "Gene_Name", "Log10_Pvalue", "Log_fold_change")
+```
+
+Ordered by log fold change and filtered for genes that only have a logFC greater or equal to 1.03 same as Himes et al: 
+```{r}
+o <- order(tutorial_et$table$logFC[as.logical(tutorial_de)],decreasing=TRUE)
+tutorial_de_gene_matrix <- tutorial_de_gene_matrix[o,]
+tutorial_de_gene_matrix[ ,2][tutorial_de_gene_matrix[ ,4] >= 1.03]
+```
+
