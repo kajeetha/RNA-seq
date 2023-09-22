@@ -1,0 +1,26 @@
+#!/bin/sh
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=16
+#SBATCH --time=04:00:00
+#SBATCH --job-name=hisatloop
+
+RNA_REF_INDEX=$SCRATCH/RNA_REF_INDEX/grch38_snp_tran/genome_snp_tran
+module load gcc/7.3.0 hisat2
+
+for i in `ls *.fastq.gz | sed 's/_r1.fastq.gz//'|sed 's/_r2.fastq.gz//' | sort -u`
+
+do
+hisat2 -p 8 \
+        --rg-id=${i} \
+        --rg SM:${i}\
+        --rg PL:ILLUMINA \
+        -x $RNA_REF_INDEX \
+        --rna-strandness RF \
+        -1 ${i}_r1.fastq.gz \
+        -2 ${i}_r2.fastq.gz \
+        -S ./${i}.sam
+done;
+
+exit
+
+
