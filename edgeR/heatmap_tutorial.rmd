@@ -1,0 +1,142 @@
+---
+title: "Heatmap tutorial"
+output: html_document
+---
+
+---
+title: "Heatmaps"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Install RColorBrewer and gplots packages 
+gplots is a popular package for visualizing data. 
+RColorBrewer is a package which allows you to clustomize your heatmap colors.
+
+
+#Load edgeR, RColorBrewer and gplots 
+```{r, echo=FALSE}
+library(edgeR)
+library(RColorBrewer)
+library(gplots)
+```
+
+
+#Convert raw reads into log counts per million for visualization with a heatmap
+
+Read in your count matrix and remove the last 5 lines
+```{r}
+raw_count_data <- read.table("gene_read_counts_table_all_final.tsv", header=TRUE, stringsAsFactors=FALSE, row.names=1)
+raw_count_data <- head(raw_count_data, -5)
+tail(raw_count_data)
+```
+
+
+Require at least 25% of samples to have count > 25 
+```{r}
+raw_count_data <- head(raw_count_data, -5)
+quant <- apply(raw_count_data,1,quantile,0.75)
+keep <- which((quant >= 25) == 1)
+raw_count_data <- raw_count_data[keep,]
+head(raw_count_data)
+```
+
+load edgeR
+```{r}
+library(edgeR)
+```
+
+
+Make class labels (normal vs tumor). This is your two experimental conditions you want to compare, in our case it is normal versus tumor.
+```{r}
+class <- factor( c( rep("normal",3), rep("tumor",3) ))
+```
+
+
+Make a DGEList object
+```{r}
+tutorial_dgelist <- DGEList(counts=raw_count_data, group=class)
+```
+
+
+Convert read counts into log2-counts-per-million (logCPM). The edgeR logcmp function does this for a DGElist. 
+The prior.counts argument adds 2 to each observation to prevent taking the log of 0. 
+```{r}
+logcpm <- cpm(tutorial_dgelist, prior.count=2, log=TRUE)
+head(logcpm)
+```
+
+
+#Generate a heatmap
+
+##Get some pretty colors
+```{r}
+mypalette <- brewer.pal(11,"RdYlBu")
+morecols <- colorRampPalette(mypalette)
+```
+
+
+##Set up colour vector for cell type variable
+```{r}
+col.cell <- c("yellow","orange")[class]
+```
+
+
+##Plot the heatmap
+
+```{r}
+heatmap.2(logcpm, col=rev(morecols(50)), trace="none", main="Tumor vs. Normal", ColSideColors=col.cell, scale="row", srtCol=45, cexCol=0.75, cexRow=0.5)
+```
+
+
+##Save your heatmap as a png file
+```{r, echo=FALSE}
+png(file="Tumor_vs_Normal_heatmap.png")
+heatmap.2(logcpm,col=rev(morecols(50)),trace="none", main="Tumor vs. Normal", ColSideColors=col.cell, scale="row", srtCol=45, cexCol=0.75, cexRow=0.5)
+dev.off()
+```
+
+
+
+#Modifying your heatmap
+
+Change the color scheme of your heatmap. Use ?RColorBrewer to see available colour schemes. Replot your heatmap with a new color scheme (use diverging palettes).
+
+```{r}
+mypalette <- brewer.pal(11, "PiYG")
+morecols <- colorRampPalette(mypalette)
+col.cell <- c("maroon", "green")[class]
+heatmap.2(logcpm,col=rev(morecols(50)),trace="none", main="Tumor vs. Normal",ColSideColors=col.cell, scale="row", srtCol=45, cexCol=0.75, cexRow=0.5)
+```
+
+
+
+#Make a heatmap of your top 100 most variable genes accross all samples 
+
+##1: First find the variance of each gene accross all samples. Hint - you can use the apply function here. var returns the variance ?apply ?var
+```{r}
+samples <- apply(raw_count_data, 1, var)
+```
+
+##2: Next sort the list obtained in step #1 by decreasing variance and use the names function to get the gene names. Subset for the first 100 gene names [1:100]
+```{r}
+samples <- sort(samples, decreasing = TRUE)
+samples1 <- samples[1:100]
+geneN<- names(samples1)
+```
+
+##3: Now subset your logcpm data selecting for the gene names for the top 100 most variable genes you determined in step #2.
+```{r}
+New <- logcpm[geneN, ]
+```
+
+##4: Check the dimensions of your new data. You should have 100 rows and 6 columns
+```{r}
+heatmap.2(New,col=rev(morecols(50)),trace="none", main="Tumor vs. Normal",ColSideColors=col.cell, scale="row", srtCol=45, cexCol=0.75, cexRow=0.5)
+```
+
+
+

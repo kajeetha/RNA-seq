@@ -1,0 +1,63 @@
+---
+title: "Volcano Plot Tutorial"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Read in the DE_genes.txt file you generated last class
+```{r}
+DE_genes <- read.table("DE_genes.txt", header= TRUE)
+```
+
+#Check the contents of the file using the head command
+```{r}
+head(DE_genes)
+```
+
+#Make a basic volcano plot
+
+plot() is a generic function used for plotting R objects. 
+Usage plot(x, y, ...)
+
+Required arguments to supply:
+x = Log_fold_change column from DE_genes
+y = negative Log10_Pvalue from DE_genes
+DE_genes$Log10_Pvalue <- DE_genes$Log10_Pvalue*(-1)
+
+```{r, echo=FALSE}
+plot(DE_genes[,4], DE_genes[,3])
+```
+
+#Make your volcano plot look nicer
+
+Optional arguments:
+pch= tells R what type symbol you want your points to be. Try setting this to 20
+xlab= Add a different x axis title. Try changing the x axis title to "Log2 Fold Change"
+ylab= Add a different y axis title. Try changing the y axis to "-log10 Pvalue"
+main= add a title to your plot. Try adding a title "Tutorial DE Genes Volcano Plot"
+
+
+```{r, echo=FALSE}
+plot(DE_genes[,4], DE_genes[,3], pch=20, xlab= "Log2 Fold Change", ylab= "-log10 Pvalue", main= "Tutorial DE Genes Volcano Plot")
+```
+
+
+#Add colored points to your plot
+What if you want to highlight specific points in your plot? For example to highlight points which have a particular log fold change or p value cut off. 
+
+To highlight genes which have an absolute log fold change greater than 1
+1) Plot your data using the plot function using the same code as line 44 above
+2) Subset your list of DE_genes to select genes which have a absolute logfold change greater than 1. Subset command usage subset(x, subset, ...)
+3) Use the points function to color the points from your subsetted list orange. Points command usage points(x, y, ...) 
+
+```{r}
+plot(DE_genes[,4], DE_genes[,3], pch=20, xlab= "Log2 Fold Change", ylab= "-log10 Pvalue", main= "Tutorial DE Genes Volcano Plot")
+DE_subset <- subset(DE_genes, abs(DE_genes$Log_fold_change) >1)
+points(DE_subset[,4],DE_subset[,3] , pch=20, col="orange")
+
+```
+
+
