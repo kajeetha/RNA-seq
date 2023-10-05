@@ -1,0 +1,106 @@
+---
+title: "DESeq2"
+author: "me"
+date: "2023-10-04"
+output: html_document
+---
+#Install packages and load libraries
+
+
+```{r setup, include=FALSE}
+install.packages("htmltools")
+library(htmltools)
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.16")
+
+BiocManager::install("DESeq2")
+library( "DESeq2" )
+
+install.packages('tidyverse')
+library('tidyverse')
+
+BiocManager::install(ggplot)
+library(ggplot2)
+```
+
+## insert countData and colData(sample types)
+
+
+
+```{r cars}
+raw_count_data <- read.table("final_read_counts.tsv", header =TRUE, stringsAsFactors = TRUE, row.names=1)
+
+metdat1 <- read.csv("metdata_2.csv", header = TRUE, sep = "\t")
+```
+
+## Required at least 25% of samples to have count > 25 
+
+```{r pressure, echo=FALSE}
+quant <- apply(raw_count_data2,1,quantile,0.75)
+keep <- which((quant >= 25) == 1)
+filtered_raw_count_data <- raw_count_data2[keep,]
+```
+
+#Construct DESEQDataSet Object
+```{r}
+dds2 <- DESeqDataSetFromMatrix(countData=filtered_raw_count_data, 
+                               colData=metdat1,
+                               design=dex)
+```
+
+#Run DESEQ function
+```{r}
+dds <- DESeq(dds)
+```
+
+#View results table and check summary of differential gene expression
+```{r}
+res <- results(dds)
+head(results(dds, tidy=TRUE))
+
+summary(res)
+```
+
+#Sorting summary list by p values
+```{r}
+res <- res[order(res$padj),]
+head(res)
+```
+
+#Use of plotCounts fxn to compare the normalized counts between treated and control groups for our top 6 genes
+```{r}
+par(mfrow=c(2,3))
+
+plotCounts(dds, gene="ENSG00000189221", intgroup="dex")
+plotCounts(dds, gene="ENSG00000139132", intgroup="dex")
+plotCounts(dds, gene="ENSG00000166741", intgroup="dex")
+plotCounts(dds, gene="ENSG00000162692", intgroup="dex")
+plotCounts(dds, gene="ENSG00000096060", intgroup="dex")
+```
+#reset par and Make a basic volcano plot
+# colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+```{r}
+par(mfrow=c(1,1))
+with(res2, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
+with(subset(res2, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(res2, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+```
+
+#Transform the raw count data
+#vst function will perform variance stabilizing transformation
+```{r}
+vsdata <- vst(dds, blind=FALSE)
+```
+#using the DESEQ2 plotPCA fxn to see how samples group
+```{r}
+plotPCA(vsdata, intgroup="dex")
+```
+#likelihood ratio for multiple hypothesis testing
+```{r}
+dds <- DESeq(dds, test="LRT", reduced=~1)
+res <- results(dds)
+```
+
+
